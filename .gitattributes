@@ -1,0 +1,4 @@
+# Normaliza finais de linha para LF no repositório. Essencial para o
+# entrypoint-winbox.sh e os Dockerfiles: rodam em Linux/containers, e CRLF
+# quebraria o shebang (/bin/bash^M: bad interpreter).
+* text=auto eol=lf
