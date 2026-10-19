@@ -1,0 +1,90 @@
+# NDE self-hosted — PostgreSQL + the NDE image in its three roles
+# (serve / worker / scheduler, all the same image).
+#
+# Quickstart:
+#   1) cp .env.example .env
+#   2) docker compose run --rm serve gen-key        # -> NDE_CREDENTIAL_KEY
+#      openssl rand -base64 48 | tr -d '\n'; echo    # -> NDE_JWT_SECRET
+#      openssl rand -hex 24                           # -> POSTGRES_PASSWORD
+#      # paste the three values into .env
+#   3) docker compose up -d
+#   4) open http://localhost:8080  (first login: admin / admin — change on first use)
+#
+# Production: put an HTTPS reverse proxy in front of `serve` (never expose 8080
+# directly) and follow docs/production.md. Pin a version tag instead of :latest.
+name: nde
+
+# Shared environment for the app roles. Secrets come from .env; the `:?` makes
+# compose stop with a clear message if one is missing.
+x-nde-env: &nde-env
+  NDE_DATABASE_DSN: postgres://nde:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/nde?sslmode=disable
+  NDE_CREDENTIAL_KEY: ${NDE_CREDENTIAL_KEY:?set NDE_CREDENTIAL_KEY in .env (docker compose run --rm serve gen-key)}
+  NDE_JWT_SECRET: ${NDE_JWT_SECRET:?set NDE_JWT_SECRET in .env (openssl rand -base64 48)}
+
+# Base for the app services: same published image, same env.
+x-nde-app: &nde-app
+  image: ghcr.io/rizottihenrique/nde:latest
+  environment: *nde-env
+  restart: unless-stopped
+
+services:
+  db:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_DB: nde
+      POSTGRES_USER: nde
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # Creates the pg_trgm extension (config search) on first boot.
+      - ./deploy/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nde -d nde"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # One-shot: applies migrations and exits. The others wait for it to succeed,
+  # so the schema is always ready before serve/worker/scheduler come up.
+  migrate:
+    <<: *nde-app
+    command: ["migrate", "-config", "configs/config.yaml"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  serve:
+    <<: *nde-app
+    command: ["serve", "-config", "configs/config.yaml", "-addr", "0.0.0.0:8080"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - app-cache:/opt/nde/cache
+      - app-wiki:/opt/nde/website
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    <<: *nde-app
+    command: ["worker", "run", "-config", "configs/config.yaml"]
+    volumes:
+      - app-cache:/opt/nde/cache
+      - app-wiki:/opt/nde/website
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  scheduler:
+    <<: *nde-app
+    command: ["scheduler", "run", "-config", "configs/config.yaml", "-tick", "1m"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  db-data:
+  app-cache:
+  app-wiki:

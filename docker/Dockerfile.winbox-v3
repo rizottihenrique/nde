@@ -1,0 +1,99 @@
+# Dockerfile para Winbox v3 (Windows) rodando em Wine (Linux container).
+# Construir: docker build -f docker/Dockerfile.winbox-v3 -t nde-winbox-v3:latest .
+# Você monta esta imagem; o build baixa o Winbox do site da MikroTik.
+
+FROM debian:bookworm-slim
+
+# Metadata
+LABEL maintainer="NDE Team"
+LABEL description="Winbox v3 (Windows) via Wine + Xvnc (TigerVNC)"
+LABEL version="3.43"
+
+# Instala dependências.
+# Wine precisa do multiarch i386 habilitado MESMO rodando só apps 64-bit —
+# no Debian bookworm o pacote "wine64" sozinho não expõe o binário
+# /usr/bin/wine64 utilizável (faltam peças que vêm só com o metapacote
+# "wine" completo); tentativa anterior de instalar só wine64 resultava em
+# "wine64: command not found" em runtime. Caminho padrão documentado do
+# Wine no Debian: habilitar i386 + instalar wine (+ wine32 + wine64).
+RUN dpkg --add-architecture i386 && apt-get update && apt-get install -y --no-install-recommends \
+    # Wine (transcodificação syscalls Win32 → Linux)
+    wine \
+    wine32 \
+    wine64 \
+    # X11 (utilidades gerais)
+    x11-utils \
+    x11-xserver-utils \
+    # Xvnc (TigerVNC): servidor X com VNC NATIVO — troca Xvfb+x11vnc.
+    # x11vnc (Debian, 0.9.16/2019) nunca implementou redimensionamento
+    # pedido pelo cliente (ExtendedDesktopSize) — PR aberto desde 2019,
+    # nunca mesclado (github.com/LibVNC/x11vnc/pull/107). Toda tentativa
+    # de resize batia "administratively prohibited". Xvnc já fala VNC
+    # nativamente, com resize remoto de verdade, sem depender disso.
+    tigervnc-standalone-server \
+    # Gerenciador de janelas mínimo (kiosk: 1 app, tela cheia, sem
+    # decoração) — sem ISSO a janela do Winbox abre no tamanho padrão
+    # dela mesma, flutuando pequena num desktop enorme.
+    matchbox-window-manager \
+    # ffmpeg: grava a sessão (x11grab) em vídeo pra auditoria do acesso —
+    # ver docker/entrypoint-winbox.sh.
+    ffmpeg \
+    # Utilidades
+    wget \
+    ca-certificates \
+    curl \
+    # Locale (Wine precisa)
+    locales \
+    # Debug
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configura locale (Wine precisa disso pra funcionar bem).
+RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && locale-gen
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+
+# Prepara diretório de Winbox.
+RUN mkdir -p /opt/winbox
+
+# Download Winbox v3 (link direto de download.mikrotik.com).
+# URL: https://download.mikrotik.com/routeros/winbox/3.43/winbox64.exe
+RUN echo "[docker] Downloading Winbox v3..." && \
+    wget -q https://download.mikrotik.com/routeros/winbox/3.43/winbox64.exe \
+    -O /opt/winbox/winbox.exe && \
+    if [ ! -f /opt/winbox/winbox.exe ]; then \
+        echo "ERROR: Winbox v3 download failed"; exit 1; \
+    fi && \
+    echo "[docker] Winbox v3 downloaded: $(ls -lh /opt/winbox/winbox.exe)"
+
+# Copia entrypoint.
+COPY docker/entrypoint-winbox.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Prepara Wine prefix (cache de layers; reduz tempo de boot).
+# Wine cria ~/.wine/prefix na primeira execução; fazer isto no build economiza tempo.
+# "wine" (não "wine64" — ver entrypoint-winbox.sh): o pacote wine64 no
+# Debian bookworm não expõe um binário /usr/bin/wine64 próprio.
+RUN env WINEARCH=win64 WINEPREFIX=/root/.wine \
+    wine wineboot --init 2>&1 | tail -5 || true
+
+# Healthcheck: Xvnc deve estar rodando.
+# Docker usa isto pra saber se container está "saudável".
+HEALTHCHECK --interval=5s --timeout=10s --start-period=5s --retries=3 \
+    CMD pgrep -f "Xvnc" > /dev/null || exit 1
+
+# Porta exposta (informativa — sem publicação pro host: o NDE conecta direto
+# pelo IP da bridge do container).
+# 5900 = VNC TCP (Xvnc)
+EXPOSE 5900
+
+# SEM "VOLUME /tmp": declarar isso faz o Docker criar um volume ANÔNIMO a
+# cada container, e Container.Kill() usa "docker rm -f" (sem "-v") — o
+# volume ficava órfão no disco pra sempre a cada sessão fechada (achado em
+# produção: contribuiu pro "no space left on device"). /tmp já é parte da
+# camada gravável do próprio container, não precisa de volume nenhum pra
+# sessões efêmeras de um uso só.
+
+# Entrypoint.
+ENTRYPOINT ["/entrypoint.sh"]

@@ -1,0 +1,101 @@
+# Dockerfile para Winbox v4 Windows via Wine.
+# Construir: docker build -f docker/Dockerfile.winbox-v4 -t nde-winbox-v4:latest .
+# Você monta esta imagem; o build baixa o Winbox do site da MikroTik.
+
+FROM debian:bookworm-slim
+
+# Metadata
+LABEL maintainer="NDE Team"
+LABEL description="Winbox v4 (Windows) via Wine (WineHQ) + Xvnc (TigerVNC)"
+LABEL version="4.3"
+
+# Instala dependências base (tudo MENOS Wine — ver bloco seguinte).
+# mesa-vulkan-drivers/libvulkan1: Winbox v4 usa Direct3D (via vkd3d, que
+# traduz pra Vulkan) pra desenhar a interface — sem driver Vulkan nenhum,
+# fica preso num loop de "Failed to compile shader"; "lavapipe" (driver
+# Vulkan por SOFTWARE da Mesa) resolve isso sem precisar de GPU real.
+RUN dpkg --add-architecture i386 && apt-get update && apt-get install -y --no-install-recommends \
+    x11-utils \
+    x11-xserver-utils \
+    # Xvnc (TigerVNC) — troca Xvfb+x11vnc: ver Dockerfile.winbox-v3 (x11vnc
+    # nunca implementou resize pedido pelo cliente; Xvnc fala VNC nativamente).
+    tigervnc-standalone-server \
+    matchbox-window-manager \
+    # ffmpeg: grava a sessão (x11grab) em vídeo pra auditoria do acesso —
+    # ver docker/entrypoint-winbox.sh.
+    ffmpeg \
+    wget \
+    ca-certificates \
+    gnupg \
+    curl \
+    unzip \
+    locales \
+    supervisor \
+    procps \
+    mesa-vulkan-drivers \
+    libvulkan1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Wine da WineHQ (não o pacote "wine" do Debian bookworm): o Wine 8.0 que
+# vem no repositório padrão do Debian tem um vkd3d-shader (compilador de
+# HLSL→SPIR-V) velho demais pro que o Winbox v4 usa — dá erro de SINTAXE
+# ("E5000: syntax error, unexpected '('"), não de driver faltando (isso já
+# tentamos, não resolve). O repositório oficial da WineHQ traz uma versão
+# bem mais nova (9.x/10.x). Passos oficiais:
+# https://gitlab.winehq.org/wine/wine/-/wikis/Debian-Ubuntu
+#
+# --no-install-recommends (não --install-recommends): o pacote
+# "winehq-stable" recomenda um MONTE de coisa irrelevante pra rodar o
+# Winbox headless — codecs de áudio (mp3/vorbis/opus/sndfile), PDF
+# (poppler), Wayland, aceleração de vídeo (VA-API/VDPAU/OpenCL),
+# impressão (CUPS), scanner (SANE). Achado em produção: isso sozinho
+# quase dobra o tamanho do install e ajudou a estourar o disco do
+# servidor (mesmo já limpo antes do build).
+RUN mkdir -pm755 /etc/apt/keyrings && \
+    wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key && \
+    wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/debian/dists/bookworm/winehq-bookworm.sources && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends winehq-stable && \
+    rm -rf /var/lib/apt/lists/*
+
+# Locale.
+RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && locale-gen
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+
+# Diretório de Winbox.
+RUN mkdir -p /opt/winbox
+
+# Download Winbox v4 (Windows ZIP).
+# URL: https://download.mikrotik.com/routeros/winbox/4.3/WinBox_Windows.zip
+RUN echo "[docker] Downloading Winbox v4 Windows..." && \
+    wget -q https://download.mikrotik.com/routeros/winbox/4.3/WinBox_Windows.zip \
+    -O /tmp/winbox4.zip && \
+    unzip -q /tmp/winbox4.zip -d /opt/winbox && \
+    rm /tmp/winbox4.zip && \
+    if [ ! -f /opt/winbox/WinBox.exe ]; then \
+        echo "ERROR: Winbox v4 extraction failed"; exit 1; \
+    fi && \
+    echo "[docker] Winbox v4 extracted: $(ls -lh /opt/winbox/WinBox.exe)"
+
+# Entrypoint (reutiliza do v3).
+COPY docker/entrypoint-winbox.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Prepara Wine prefix. "wine" (não "wine64" — ver Dockerfile.winbox-v3).
+RUN env WINEARCH=win64 WINEPREFIX=/root/.wine \
+    wine wineboot --init 2>&1 | tail -5 || true
+
+# Healthcheck: Xvnc deve estar rodando.
+HEALTHCHECK --interval=5s --timeout=10s --start-period=5s --retries=3 \
+    CMD pgrep -f "Xvnc" > /dev/null || exit 1
+
+# Porta exposta (informativa — sem publicação pro host).
+EXPOSE 5900
+
+# SEM "VOLUME /tmp" — ver Dockerfile.winbox-v3 (deixava volume anônimo
+# órfão no disco a cada sessão fechada; achado em produção).
+
+# Entrypoint.
+ENTRYPOINT ["/entrypoint.sh"]

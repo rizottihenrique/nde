@@ -1,0 +1,6 @@
+# Secrets — never commit. Use .env.example as the template.
+.env
+
+# OS / editor noise
+.DS_Store
+*.swp
