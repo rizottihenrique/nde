@@ -16,11 +16,13 @@ docker compose up -d
 ## Pin a version in production
 
 `:latest` is convenient for trying NDE, but in production pin an explicit tag so
-upgrades are deliberate and reproducible. In your compose override:
+upgrades are deliberate and reproducible. Published tags follow the release
+version **without** a leading `v` (e.g. the `v0.1.0` release publishes `0.1.0` and
+the floating `0.1`). In your compose override:
 
 ```yaml
 x-nde-app: &nde-app
-  image: ghcr.io/rizottihenrique/nde:v0.1.0
+  image: ghcr.io/rizottihenrique/nde:0.1.0
 ```
 
 Bump the tag when you choose to upgrade, then pull + up.
