@@ -98,5 +98,6 @@ verification), a reverse proxy with HTTPS in front of the app, and backups.
 
 - This repository (Compose files, scripts, documentation) is licensed under the
   **MIT License** — see [LICENSE](LICENSE).
-- The **NDE container image** is proprietary and provided free to self-host under
-  the terms in **[TERMS.md](TERMS.md)**.
+- The **NDE container image** is proprietary and provided free to self-host —
+  **use only; no modification or redistribution** — under the terms in
+  **[TERMS.md](TERMS.md)**.
