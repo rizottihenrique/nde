@@ -1,10 +1,29 @@
-# NDE — Network Documentation Engine
+<p align="center">
+  <img src="assets/logo.svg" alt="NDE logo" width="96" height="96">
+</p>
 
-**Self-hosted, free to run.** NDE is a modular platform to collect, parse and
-document an ISP's network: assets & credentials, scheduled read-only collection,
-multi-vendor parsing into normalized models, an inventory with snapshots / diff /
-compliance, interactive topology, BGP/OSPF/L2VPN/L3VPN/IPAM/VLAN maps, a web
-admin panel and a REST API.
+<h1 align="center">NDE — Network Documentation Engine</h1>
+
+<p align="center"><em>Self-hosted, free to run.</em></p>
+
+<p align="center">
+  <img src="assets/icons/router.svg" width="52" alt="router">
+  &nbsp;&nbsp;
+  <img src="assets/icons/switch.svg" width="52" alt="switch">
+  &nbsp;&nbsp;
+  <img src="assets/icons/firewall.svg" width="52" alt="firewall">
+  &nbsp;&nbsp;
+  <img src="assets/icons/olt.svg" width="52" alt="olt">
+  &nbsp;&nbsp;
+  <img src="assets/icons/cloud.svg" width="52" alt="cloud">
+  &nbsp;&nbsp;
+  <img src="assets/icons/server.svg" width="52" alt="server">
+</p>
+
+NDE is a modular platform to collect, parse and document an ISP's network:
+assets & credentials, scheduled read-only collection, multi-vendor parsing into
+normalized models, an inventory with snapshots / diff / compliance, interactive
+topology, BGP/OSPF/L2VPN/L3VPN/IPAM/VLAN maps, a web admin panel and a REST API.
 
 > This repository holds **how to run** NDE — the Docker Compose stack and the
 > documentation. The application ships as a prebuilt container image
@@ -30,6 +49,27 @@ admin panel and a REST API.
 The MikroTik **Winbox** web bastion is **not** included in the public image (it
 embeds MikroTik's proprietary binary). It is an opt-in add-on you build yourself
 — see [docs/winbox.md](docs/winbox.md).
+
+---
+
+## Supported vendors
+
+Collection is over SSH, parsed into normalized models by a per-vendor plugin.
+Current vendors:
+
+| Vendor | Platform / OS |
+|---|---|
+| Cisco | IOS / IOS-XE |
+| Huawei | VRP |
+| Juniper | Junos |
+| Arista | EOS |
+| Nokia | SR OS |
+| MikroTik | RouterOS |
+
+Each plugin collects inventory/version, interfaces and descriptions, neighbors
+(LLDP) and IP addressing, with routing details (BGP / OSPF) where the platform
+exposes them. The core is vendor-agnostic (plugin architecture), so new vendors
+are added as plugins without touching it.
 
 ---
 
