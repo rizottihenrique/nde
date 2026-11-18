@@ -25,11 +25,6 @@ assets & credentials, scheduled read-only collection, multi-vendor parsing into
 normalized models, an inventory with snapshots / diff / compliance, interactive
 topology, BGP/OSPF/L2VPN/L3VPN/IPAM/VLAN maps, a web admin panel and a REST API.
 
-> This repository holds **how to run** NDE — the Docker Compose stack and the
-> documentation. The application ships as a prebuilt container image
-> (`ghcr.io/rizottihenrique/nde`). You run it on your own infrastructure; your
-> data stays with you.
-
 ---
 
 ## What you get
