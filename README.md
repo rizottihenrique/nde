@@ -6,20 +6,6 @@
 
 <p align="center"><em>Self-hosted, free to run.</em></p>
 
-<p align="center">
-  <img src="assets/icons/router.svg" width="52" alt="router">
-  &nbsp;&nbsp;
-  <img src="assets/icons/switch.svg" width="52" alt="switch">
-  &nbsp;&nbsp;
-  <img src="assets/icons/firewall.svg" width="52" alt="firewall">
-  &nbsp;&nbsp;
-  <img src="assets/icons/olt.svg" width="52" alt="olt">
-  &nbsp;&nbsp;
-  <img src="assets/icons/cloud.svg" width="52" alt="cloud">
-  &nbsp;&nbsp;
-  <img src="assets/icons/server.svg" width="52" alt="server">
-</p>
-
 NDE is a modular platform to collect, parse and document an ISP's network:
 assets & credentials, scheduled read-only collection, multi-vendor parsing into
 normalized models, an inventory with snapshots / diff / compliance, interactive
@@ -57,7 +43,6 @@ Current vendors:
 | Cisco | IOS / IOS-XE |
 | Huawei | VRP |
 | Juniper | Junos |
-| Arista | EOS |
 | Nokia | SR OS |
 | MikroTik | RouterOS |
 
