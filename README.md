@@ -17,7 +17,7 @@ topology, BGP/OSPF/L2VPN/L3VPN/IPAM/VLAN maps, a web admin panel and a REST API.
 
 - **Collection** — scheduled, read-only SSH collection with a concurrent worker
   pool, leases and retries. Vendor-agnostic core with a per-vendor plugin layer
-  (Cisco, Huawei, Juniper, Arista, Nokia, MikroTik, and more).
+  (Cisco, Huawei, Juniper, Nokia, MikroTik, and more).
 - **Inventory** — a PostgreSQL source of truth with configuration snapshots,
   diffs between collections and compliance checks.
 - **Maps & docs** — interactive topology and routing maps, plus an
