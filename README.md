@@ -43,8 +43,9 @@ Current vendors:
 | Cisco | IOS / IOS-XE |
 | Huawei | VRP |
 | Juniper | Junos |
-| Nokia | SR OS |
+| Nokia | SR OS/ISAM |
 | MikroTik | RouterOS |
+| Fiberhome | AN5000 Series |
 
 Each plugin collects inventory/version, interfaces and descriptions, neighbors
 (LLDP) and IP addressing, with routing details (BGP / OSPF) where the platform
