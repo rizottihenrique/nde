@@ -45,7 +45,7 @@ Current vendors:
 | Juniper | Junos |
 | Nokia | SR OS/ISAM |
 | MikroTik | RouterOS |
-| Fiberhome | AN5000 Series |
+| Fiberhome | AN5000/AN6000 Series |
 
 Each plugin collects inventory/version, interfaces and descriptions, neighbors
 (LLDP) and IP addressing, with routing details (BGP / OSPF) where the platform
